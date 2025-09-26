@@ -1,11 +1,27 @@
 import random
 import math
 import time
+import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Set
 
 # === Graph + rotation utilities ===
 def complete_graph_adj(n: int) -> Dict[int, List[int]]:
+    """Adjacency for complete graph K_n."""
     return {v: [u for u in range(n) if u != v] for v in range(n)}
+
+def complete_bipartite_adj(m: int, n: int) -> Dict[int, List[int]]:
+    """Adjacency for complete bipartite graph K_{m,n}.
+       Vertices 0..m-1 = left part, m..m+n-1 = right part."""
+    adj: Dict[int, List[int]] = {}
+    left = range(m)
+    right = range(m, m+n)
+    # left side connects to all right side
+    for v in left:
+        adj[v] = list(right)
+    # right side connects to all left side
+    for v in right:
+        adj[v] = list(left)
+    return adj
 
 def random_rotation_from_adj(adj: Dict[int, List[int]], seed: int = None) -> Dict[int, List[int]]:
     if seed is not None:
@@ -66,6 +82,15 @@ def genus_from_rotation(rotation: Dict[int, List[int]], adj: Dict[int, List[int]
     g = (2 - chi) / 2
     return g
 
+# === Theoretical genus formulas ===
+def true_genus_complete(n: int) -> int:
+    """True orientable genus of complete graph K_n."""
+    return math.ceil((n - 3) * (n - 4) / 12)
+
+def true_genus_bipartite(m: int, n: int) -> int:
+    """True orientable genus of complete bipartite graph K_{m,n}."""
+    return math.ceil((m - 2) * (n - 2) / 4)
+
 # === Neighbor proposals ===
 def neighbor_easy_swap(rotation: Dict[int, List[int]]) -> Dict[int, List[int]]:
     # Easy: single-vertex 2-swap
@@ -117,6 +142,33 @@ def propose_multi_neighbor(rotation: Dict[int, List[int]], adj: Dict[int, List[i
     else:
         return neighbor_full_shuffle(rotation)
 
+# === Plotting neighbor genus distribution ===
+def plot_neighbor_genus_distribution(adj,
+                                     base_rotation: Dict[int, List[int]],
+                                     neighbor_func,
+                                     samples: int = 200,
+                                     title: str = 'Neighbor genus distribution'):
+    """
+    Sample `samples` neighbors from `base_rotation` using neighbor_func and plot a histogram of their genus.
+    """
+    genus_values = []
+    for _ in range(samples):
+        try:
+            cand = neighbor_func(base_rotation)
+        except TypeError:
+            # if neighbor_func needs adj as well (like edge-dart or multi)
+            cand = neighbor_func(base_rotation, adj)
+        g = genus_from_rotation(cand, adj)
+        genus_values.append(g)
+
+    plt.figure(figsize=(8, 4))
+    plt.hist(genus_values, bins=20, color='skyblue', edgecolor='black')
+    plt.title(title)
+    plt.xlabel("Genus")
+    plt.ylabel("Frequency")
+    plt.grid(True)
+    plt.show()
+
 # === Simulated annealing ===
 def simulated_annealing_min_genus(adj: Dict[int, List[int]],
                                   init_rotation: Dict[int, List[int]],
@@ -147,19 +199,28 @@ def simulated_annealing_min_genus(adj: Dict[int, List[int]],
 
     return best_rotation, best_genus
 
-# ... main ...
-
+# === Main program ===
 if __name__ == "__main__":
-    n = int(input("Enter n (for K_n): "))
-    adj = complete_graph_adj(n)
+    graph_type = input("Enter graph type ('complete' or 'bipartite'): ").strip().lower()
+    if graph_type.startswith("c"):  # complete graph
+        n = int(input("Enter n (for K_n): "))
+        adj = complete_graph_adj(n)
+        true_g = true_genus_complete(n)
+        label = f"K_{n}"
+    else:  # bipartite
+        m = int(input("Enter m (left-side vertices): "))
+        n = int(input("Enter n (right-side vertices): "))
+        adj = complete_bipartite_adj(m, n)
+        true_g = true_genus_bipartite(m, n)
+        label = f"K_{{{m},{n}}}"
 
     # random rotation
     init_rotation = random_rotation_from_adj(adj)
-    print("\nInitial random rotation system:")
+    print(f"\nInitial random rotation system for {label}:")
     for v in sorted(init_rotation):
         print(f"vertex {v}: {init_rotation[v]}")
     init_g = genus_from_rotation(init_rotation, adj)
-    print(f"Initial genus: {init_g}\n")
+    print(f"Initial genus: {init_g} (True genus by formula: {true_g})\n")
 
     neighbors = [
         ("Easy: single-vertex 2-swap", neighbor_easy_swap),
@@ -169,6 +230,16 @@ if __name__ == "__main__":
         ("Multi-neighborhood (weighted)", propose_multi_neighbor)
     ]
 
+    # Plot distributions for each neighbor type
+    print("\nPlotting neighbor genus distributions (200 samples each):")
+    for name, func in neighbors:
+        plot_neighbor_genus_distribution(adj,
+                                         init_rotation,
+                                         func,
+                                         samples=200,
+                                         title=f"{name} neighbor genus distribution")
+
+    # Run SA as before
     for name, func in neighbors:
         start_time = time.time()
         best_rot, best_g = simulated_annealing_min_genus(adj, init_rotation, func,
@@ -177,7 +248,7 @@ if __name__ == "__main__":
                                                          final_temp=1e-5)
         elapsed = time.time() - start_time
         print(f"\n=== Neighbor type: {name} ===")
-        print(f"Best genus found: {best_g} (time: {elapsed:.2f} s)")
+        print(f"Best genus found: {best_g} (True genus: {true_g}, time: {elapsed:.2f} s)")
         for v in sorted(best_rot):
             print(f"vertex {v}: {best_rot[v]}")
 
@@ -194,11 +265,11 @@ if __name__ == "__main__":
                                                final_temp=1e-5)
         elapsed = time.time() - start_time
         times.append(elapsed)
-        print(f"Run {run}: genus {g} (time {elapsed:.2f}s)")
+        print(f"Run {run}: genus {g} (True genus: {true_g}, time {elapsed:.2f}s)")
         if g < best_overall_genus:
             best_overall_genus = g
             best_overall_rot = rot
 
-    print(f"\nBest genus across 3 multi-neighborhood runs: {best_overall_genus}")
+    print(f"\nBest genus across 3 multi-neighborhood runs: {best_overall_genus} (True genus: {true_g})")
     for v in sorted(best_overall_rot):
         print(f"vertex {v}: {best_overall_rot[v]}")
