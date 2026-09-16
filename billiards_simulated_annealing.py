@@ -326,6 +326,17 @@ def simulated_annealing_min_genus(adj: Dict[int, List[int]],
             if current_genus < best_genus:
                 best_genus = current_genus
                 best_rotation = current
+
+                #Diplay useful information about the current best solution
+                print(f"Iteration {it}: \nNew best genus found: {best_genus}")
+                print(f"Current Rotation System:")
+                for v in sorted(best_rotation):
+                    print(
+                        f"vertex {v}: "
+                        f"{best_rotation[v]}"
+                    )
+                print("\n")
+
                 if best_genus <= 0:
                     break
         temp *= cooling
@@ -408,26 +419,11 @@ if __name__ == "__main__":
     # --------------------------------------------------------
 
     neighbors = [
-        (
-            "Easy: single-vertex 2-swap",
-            neighbor_easy_swap
-        ),
-        (
-            "Medium: segment reversal",
-            neighbor_segment_reverse
-        ),
-        (
-            "Medium: edge-targeted dart",
-            neighbor_edge_dart
-        ),
-        (
-            "Hard: full-vertex shuffle",
-            neighbor_full_shuffle
-        ),
-        (
-            "Multi-neighborhood (weighted)",
-            propose_multi_neighbor
-        )
+        ("Easy: single-vertex 2-swap", neighbor_easy_swap),
+        #("Medium: segment reversal", neighbor_segment_reverse),
+        #("Medium: edge-targeted dart", neighbor_edge_dart),
+        #("Hard: full-vertex shuffle", neighbor_full_shuffle),
+        #("Multi-neighborhood (weighted)", propose_multi_neighbor)
     ]
 
     # --------------------------------------------------------
@@ -461,7 +457,7 @@ if __name__ == "__main__":
                 adj,
                 init_rotation,
                 func,
-                max_iters=1200000,
+                max_iters=2000000,
                 init_temp=3.0,
                 final_temp=1e-5
             )
@@ -491,6 +487,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------
     # Multi-neighborhood repeated runs.
     # --------------------------------------------------------
+    '''
 
     print(
         "\n=== Multi-neighborhood 3-run best ==="
@@ -541,3 +538,5 @@ if __name__ == "__main__":
             f"vertex {v}: "
             f"{best_overall_rot[v]}"
         )
+        
+    '''
