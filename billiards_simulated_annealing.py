@@ -197,6 +197,63 @@ def count_faces(rotation: Dict[int, List[int]], adj: Dict[int, List[int]]) -> in
                 break
     return faces
 
+def face_length_counts(
+    rotation: Dict[int, List[int]],
+    adj: Dict[int, List[int]]
+) -> Dict[int, int]:
+    """
+    Count how many faces have each length.
+
+    Returns a dictionary where:
+        key   = number of sides of the face
+        value = number of faces of that size
+    """
+
+    sigma = make_sigma(rotation)
+    alpha = make_alpha(adj)
+    darts = build_darts(adj)
+
+    visited: Set[Tuple[int, int]] = set()
+    face_lengths: Dict[int, int] = {}
+
+    for d in darts:
+        if d in visited:
+            continue
+
+        cur = d
+        face_length = 0
+
+        while True:
+            visited.add(cur)
+            face_length += 1
+
+            cur = sigma[alpha[cur]]
+
+            if cur in visited:
+                break
+
+        # Add this face to the appropriate count
+        if face_length not in face_lengths:
+            face_lengths[face_length] = 0
+
+        face_lengths[face_length] += 1
+
+    return face_lengths
+
+def print_face_length_counts(
+    rotation: Dict[int, List[int]],
+    adj: Dict[int, List[int]]
+) -> None:
+    """Print the number of faces of each size."""
+
+    face_counts = face_length_counts(rotation, adj)
+
+    print("\n=== Face Length Distribution ===")
+    print(f"Total number of faces: {sum(face_counts.values())}")
+
+    for length in sorted(face_counts):
+        print(f"{length}-sided faces: {face_counts[length]}")
+
 
 # ============================================================
 # GENUS
@@ -329,7 +386,13 @@ def simulated_annealing_min_genus(adj: Dict[int, List[int]],
 
                 #Diplay useful information about the current best solution
                 print(f"Iteration {it}: \nNew best genus found: {best_genus}")
-                print(f"Current Rotation System:")
+
+                print_face_length_counts(
+                    best_rotation,
+                    adj
+                )
+
+                print(f"\nCurrent Rotation System:")
                 for v in sorted(best_rotation):
                     print(
                         f"vertex {v}: "
@@ -414,6 +477,11 @@ if __name__ == "__main__":
         f"\nInitial genus: {init_g}"
     )
 
+    print_face_length_counts(
+        init_rotation,
+        adj
+    )
+
     # --------------------------------------------------------
     # Neighbor strategies.
     # --------------------------------------------------------
@@ -473,9 +541,16 @@ if __name__ == "__main__":
             f"Best genus found: {best_g}"
         )
 
-        print(
-            f"Time: {elapsed:.2f} seconds"
+        print_face_length_counts(
+            best_rot,
+            adj
         )
+
+        print(
+            f"\nTime: {elapsed:.2f} seconds"
+        )
+
+        print ("\nBest rotation system:")
 
         for v in sorted(best_rot):
 
