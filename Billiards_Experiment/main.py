@@ -1,4 +1,4 @@
-from experiment_functions import billiard_graph_min_genus_experiment, billiard_graph_min_genus_experiment_n_runs, billiard_bracket_type_one_experiment, billiard_bracket_type_two_experiment, billiard_bracket_type_three_experiment, billiard_bracket_type_four_experiment
+from experiment_functions import billiard_graph_min_genus_experiment, billiard_graph_min_genus_experiment_n_runs, billiard_bracket_type_one_experiment, billiard_bracket_type_two_experiment, billiard_bracket_type_three_experiment, billiard_bracket_type_four_experiment, billiard_bracket_type_five_experiment
 
 '''
 Type One: [1,1,1,2k-3] 
@@ -26,9 +26,10 @@ if __name__ == "__main__":
         for x in bracket_input.split()
     ]
 
-    billiard_graph_min_genus_experiment(bracket)
-    billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=3)
-    billiard_bracket_type_one_experiment(n_runs=3, m=20)
-    billiard_bracket_type_two_experiment(n_runs=3, m=20)
-    billiard_bracket_type_three_experiment(n_runs=3, m=20)
-    billiard_bracket_type_four_experiment(n_runs=3, m=20)
+    #billiard_graph_min_genus_experiment(bracket)
+    #billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=3)
+    #billiard_bracket_type_one_experiment(n_runs=3, m=20)
+    #billiard_bracket_type_two_experiment(n_runs=3, m=20)
+    #billiard_bracket_type_three_experiment(n_runs=3, m=20)
+    #billiard_bracket_type_four_experiment(n_runs=3, m=20)
+    billiard_bracket_type_five_experiment(n_runs=3, m=6)

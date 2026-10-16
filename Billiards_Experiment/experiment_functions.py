@@ -368,5 +368,5 @@ def billiard_bracket_type_five_experiment(n_runs: int = 3, m: int = 20) -> None:
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func)
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func[1])
 
