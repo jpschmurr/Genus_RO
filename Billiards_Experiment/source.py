@@ -7,6 +7,8 @@ import networkx as nx
 from typing import Dict, List, Tuple, Set
 
 
+display_progress = False  # Determines whether to display progress information during simulated annealing.
+
 # ============================================================
 # BILLIARD GRAPH CREATION
 # ============================================================
@@ -76,6 +78,7 @@ def make_billiard_graph_integers(bracket: List[int]) -> Dict[int, List[int]]:
     for p in range(1, k):
         next_ref = (ref_list[p - 1] + n - bracket[p]) % n
         ref_list.append(next_ref)
+    ref_list = list(set(ref_list))  # Remove duplicates.
 
     # --------------------------------------------------------
     # Add edges.
@@ -196,6 +199,63 @@ def count_faces(rotation: Dict[int, List[int]], adj: Dict[int, List[int]]) -> in
             if cur in visited:
                 break
     return faces
+
+def face_length_counts(
+    rotation: Dict[int, List[int]],
+    adj: Dict[int, List[int]]
+) -> Dict[int, int]:
+    """
+    Count how many faces have each length.
+
+    Returns a dictionary where:
+        key   = number of sides of the face
+        value = number of faces of that size
+    """
+
+    sigma = make_sigma(rotation)
+    alpha = make_alpha(adj)
+    darts = build_darts(adj)
+
+    visited: Set[Tuple[int, int]] = set()
+    face_lengths: Dict[int, int] = {}
+
+    for d in darts:
+        if d in visited:
+            continue
+
+        cur = d
+        face_length = 0
+
+        while True:
+            visited.add(cur)
+            face_length += 1
+
+            cur = sigma[alpha[cur]]
+
+            if cur in visited:
+                break
+
+        # Add this face to the appropriate count
+        if face_length not in face_lengths:
+            face_lengths[face_length] = 0
+
+        face_lengths[face_length] += 1
+
+    return face_lengths
+
+def print_face_length_counts(
+    rotation: Dict[int, List[int]],
+    adj: Dict[int, List[int]]
+) -> None:
+    """Print the number of faces of each size."""
+
+    face_counts = face_length_counts(rotation, adj)
+
+    print("\n=== Face Length Distribution ===")
+    print(f"Total number of faces: {sum(face_counts.values())}")
+
+    for length in sorted(face_counts):
+        print(f"{length}-sided faces: {face_counts[length]}")
 
 
 # ============================================================
@@ -328,20 +388,76 @@ def simulated_annealing_min_genus(adj: Dict[int, List[int]],
                 best_rotation = current
 
                 #Diplay useful information about the current best solution
-                print(f"Iteration {it}: \nNew best genus found: {best_genus}")
-                print(f"Current Rotation System:")
-                for v in sorted(best_rotation):
-                    print(
-                        f"vertex {v}: "
-                        f"{best_rotation[v]}"
+                if display_progress == True:
+                    print(f"Iteration {it}: \nNew best genus found: {best_genus}")
+
+                    print_face_length_counts(
+                        best_rotation,
+                        adj
                     )
-                print("\n")
+
+                    print(f"\nCurrent Rotation System:")
+                    for v in sorted(best_rotation):
+                        print(
+                            f"vertex {v}: "
+                            f"{best_rotation[v]}"
+                        )
+                    print("\n")
 
                 if best_genus <= 0:
                     break
         temp *= cooling
 
     return best_rotation, best_genus
+
+def billiard_graph_min_genus_experiment(bracket: List[int],
+                                     max_iters: int = 2000000,
+                                     init_temp: float = 3.0,
+                                     final_temp: float = 1e-5) -> Tuple[Dict[int,List[int]], float]:
+    """
+    Run the billiard graph minimum genus experiment for a given bracket.
+
+    Returns the best rotation system and its genus.
+    """
+
+    print(f"\n=== Billiard Graph Minimum Genus Experiment for Bracket: {bracket} ===")
+
+    # Construct billiard graph.
+    adj = make_billiard_graph_integers(bracket)
+
+    # Display graph information.
+    print("\n=== Graph Information ===")
+    graph_info(adj)
+
+    # Create random initial rotation system.
+    init_rotation = random_rotation_from_adj(adj)
+
+    print("\n=== Initial Rotation System ===")
+    for v in sorted(init_rotation):
+        print(f"vertex {v}: {init_rotation[v]}")
+
+    init_g = genus_from_rotation(init_rotation, adj)
+    print(f"\nInitial genus: {init_g}")
+    print_face_length_counts(init_rotation, adj)
+
+    # Run simulated annealing with easy swap neighbor.
+    best_rot, best_g = simulated_annealing_min_genus(
+        adj,
+        init_rotation,
+        neighbor_easy_swap,
+        max_iters=max_iters,
+        init_temp=init_temp,
+        final_temp=final_temp
+    )
+
+    print(f"\nBest genus found: {best_g}")
+    print_face_length_counts(best_rot, adj)
+
+    print("\nBest rotation system:")
+    for v in sorted(best_rot):
+        print(f"vertex {v}: {best_rot[v]}")
+
+    return best_rot, best_g
 
 
 # ============================================================
@@ -414,6 +530,11 @@ if __name__ == "__main__":
         f"\nInitial genus: {init_g}"
     )
 
+    print_face_length_counts(
+        init_rotation,
+        adj
+    )
+
     # --------------------------------------------------------
     # Neighbor strategies.
     # --------------------------------------------------------
@@ -433,7 +554,7 @@ if __name__ == "__main__":
     print(
         "\n=== Neighbor Genus Distributions ==="
     )
-
+    '''
     for name, func in neighbors:
 
         plot_neighbor_genus_distribution(
@@ -443,6 +564,8 @@ if __name__ == "__main__":
             samples=200,
             title=f"{name} neighbor genus distribution"
         )
+    '''
+        
 
     # --------------------------------------------------------
     # Run simulated annealing.
@@ -473,9 +596,16 @@ if __name__ == "__main__":
             f"Best genus found: {best_g}"
         )
 
-        print(
-            f"Time: {elapsed:.2f} seconds"
+        print_face_length_counts(
+            best_rot,
+            adj
         )
+
+        print(
+            f"\nTime: {elapsed:.2f} seconds"
+        )
+
+        print ("\nBest rotation system:")
 
         for v in sorted(best_rot):
 
@@ -487,10 +617,10 @@ if __name__ == "__main__":
     # --------------------------------------------------------
     # Multi-neighborhood repeated runs.
     # --------------------------------------------------------
-    '''
+    
 
     print(
-        "\n=== Multi-neighborhood 3-run best ==="
+        "\n=== Easy_swap 3-run best ==="
     )
 
     best_overall_genus = float("inf")
@@ -504,7 +634,7 @@ if __name__ == "__main__":
             simulated_annealing_min_genus(
                 adj,
                 init_rotation,
-                propose_multi_neighbor,
+                neighbor_easy_swap,
                 max_iters=12000,
                 init_temp=3.0,
                 final_temp=1e-5
@@ -530,6 +660,11 @@ if __name__ == "__main__":
         f"{best_overall_genus}"
     )
 
+    print_face_length_counts(
+        best_overall_rot,
+        adj
+    )
+
     print("\nBest rotation system:")
 
     for v in sorted(best_overall_rot):
@@ -539,4 +674,134 @@ if __name__ == "__main__":
             f"{best_overall_rot[v]}"
         )
         
+    
+
+    #--------------------------------------------------------
+    #FINDING THE MIN GENUS FOR BRACKET TYPE [1,1,1,2K-3]
+    #--------------------------------------------------------
+    
     '''
+    print("\n=== Finding minimum genus for brackets of the form [1,1,1,2K-3] ===")
+
+    for K in range(2, 21):
+
+        bracket = [1, 1, 1, 2*K-3]
+
+        print(f"\n=== Bracket: {bracket} ===")
+
+        adj = make_billiard_graph_integers(bracket)
+
+        init_rotation = random_rotation_from_adj(adj)
+
+        best_rot, best_g = (
+            simulated_annealing_min_genus(
+                adj,
+                init_rotation,
+                propose_multi_neighbor,
+                max_iters=2000000,
+                init_temp=3.0,
+                final_temp=1e-5
+            )
+        )
+
+        print(
+            f"Bracket {bracket}: "
+            f"Best genus found: {best_g}"
+        )
+        print_face_length_counts(
+            best_rot,
+            adj
+        )
+        print("\nBest rotation system:")
+        for v in sorted(best_rot):
+            print(
+                f"vertex {v}: "
+                f"{best_rot[v]}"
+            )
+    '''
+
+    #--------------------------------------------------------
+    #FINDING THE MIN GENUS FOR BRACKET TYPE [K,K+1,K+2,K+3]
+    #--------------------------------------------------------
+
+    '''
+    print("\n=== Finding minimum genus for brackets of the form [k,k+1,k+2,k+3] ===")
+    
+    for k in range(2, 6):
+
+        bracket = [k, k+1, k+2, k+3]
+
+        print(f"\n=== Bracket: {bracket} ===")
+
+        adj = make_billiard_graph_integers(bracket)
+
+        init_rotation = random_rotation_from_adj(adj)
+
+        best_rot, best_g = (
+            simulated_annealing_min_genus(
+                adj,
+                init_rotation,
+                neighbor_easy_swap,
+                max_iters=2000000,
+                init_temp=3.0,
+                final_temp=1e-5
+            )
+        )
+
+        print(
+            f"Bracket {bracket}: "
+            f"Best genus found: {best_g}"
+        )
+        print_face_length_counts(
+            best_rot,
+            adj
+        )
+        print("\nBest rotation system:")
+        for v in sorted(best_rot):
+            print(
+                f"vertex {v}: "
+                f"{best_rot[v]}"
+            )
+    '''
+
+    #--------------------------------------------------------
+    #FINDING THE MIN GENUS FOR BRACKET TYPE [1,1,1,1, 3K-4]
+    #--------------------------------------------------------   
+
+    print("\n=== Finding minimum genus for brackets of the form [1,1,1,1, 3k-4] ===")
+
+    for K in range(2, 21):
+
+        bracket = [1, 1, 1, 1, 3*K-4]
+
+        print(f"\n=== Bracket: {bracket} ===")
+
+        adj = make_billiard_graph_integers(bracket)
+
+        init_rotation = random_rotation_from_adj(adj)
+
+        best_rot, best_g = (
+            simulated_annealing_min_genus(
+                adj,
+                init_rotation,
+                propose_multi_neighbor,
+                max_iters=2000000,
+                init_temp=3.0,
+                final_temp=1e-5
+            )
+        )
+
+        print(
+            f"Bracket {bracket}: "
+            f"Best genus found: {best_g}"
+        )
+        print_face_length_counts(
+            best_rot,
+            adj
+        )
+        print("\nBest rotation system:")
+        for v in sorted(best_rot):
+            print(
+                f"vertex {v}: "
+                f"{best_rot[v]}"
+            )
