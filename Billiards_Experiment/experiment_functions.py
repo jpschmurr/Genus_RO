@@ -141,7 +141,79 @@ def billiard_graph_min_genus_experiment(bracket: List[int],
 # BILLIARD GRAPH MINIMUM GENUS EXPERIMENT WITH MULTIPLE RUNS
 #============================================================
 
-def billiard_graph_min_genus_experiment_n_runs(bracket: List[int], n_runs: int = 3, func: callable = neighbor_easy_swap) -> None:
+def billiard_graph_min_genus_experiment_n_runs(bracket: List[int], 
+                                                n_runs: int = 3, 
+                                                max_iterations: int = 2000000,
+                                                init_temperature: float = 3.0,
+                                                final_temperature: float = 1e-5, 
+                                                funcs: list = [("Easy: Single-vertex 2-swap", neighbor_easy_swap)]) -> None:
+    """
+    Run the billiard graph minimum genus experiment with a specified neighbor function for a given bracket.
+    """
+    print(
+        f"\n=== {bracket} {n_runs}-run best ==="
+    )
+
+    best_overall_genus = float("inf")
+    best_overall_rot = None
+
+    adj = make_billiard_graph_integers(bracket)
+
+    init_rotation = random_rotation_from_adj(adj)
+
+    for func in funcs:
+
+        print(f"\n=== {func[0]} ===")
+        
+        for run in range(1, n_runs + 1):
+        
+            start_time = time.time()
+
+            rot, g = (
+                simulated_annealing_min_genus(
+                    adj,
+                    init_rotation,
+                    func[1],
+                    max_iters=max_iterations,
+                    init_temp=init_temperature,
+                    final_temp=final_temperature
+                )
+            )
+
+            elapsed = time.time() - start_time
+
+            print(
+                f"Run {run}: "
+                f"genus {g}, "
+                f"time {elapsed:.2f}s"
+            )
+
+            if g < best_overall_genus:
+
+                best_overall_genus = g
+
+                best_overall_rot = rot
+
+    print(
+        f"\nBest genus across {n_runs} runs: "
+        f"{best_overall_genus}"
+    )
+
+    print_face_length_counts(
+        best_overall_rot,
+        adj
+    )
+
+    print("\nBest rotation system:")
+
+    for v in sorted(best_overall_rot):
+
+        print(
+            f"vertex {v}: "
+            f"{best_overall_rot[v]}"
+        )
+
+def billiard_graph_min_genus_experiment_n_runs_outdated(bracket: List[int], n_runs: int = 3, func: callable = neighbor_easy_swap) -> None:
     """
     Run the billiard graph minimum genus experiment with a specified neighbor function for a given bracket.
     """
@@ -204,6 +276,7 @@ def billiard_graph_min_genus_experiment_n_runs(bracket: List[int], n_runs: int =
             f"vertex {v}: "
             f"{best_overall_rot[v]}"
         )
+
 
 def billiard_bracket_type_one_experiment(n_runs: int = 3, m: int = 20) -> None:
     """
@@ -334,7 +407,7 @@ def billiard_bracket_type_four_experiment(n_runs: int = 3, m: int = 20) -> None:
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func)
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func[1])
 
 def billiard_bracket_type_five_experiment(n_runs: int = 3, m: int = 20) -> None:
     print("\n=== Finding minimum genus for brackets of the form [1,1,1,1, 3k-4] ===")
@@ -368,5 +441,5 @@ def billiard_bracket_type_five_experiment(n_runs: int = 3, m: int = 20) -> None:
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func)
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func[1])
 
