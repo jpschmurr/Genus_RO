@@ -35,8 +35,6 @@ if __name__ == "__main__":
 
     #billiard_graph_min_genus_experiment(bracket)
     billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=3, max_iterations=2000000, init_temperature=3.0, final_temperature=1e-5, funcs=neighbors)
-    #billiard_graph_min_genus_experiment(bracket)
-    #billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=3)
     #billiard_bracket_type_one_experiment(n_runs=3, m=20)
     #billiard_bracket_type_two_experiment(n_runs=3, m=20)
     #billiard_bracket_type_three_experiment(n_runs=3, m=20)

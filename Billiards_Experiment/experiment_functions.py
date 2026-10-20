@@ -1,12 +1,14 @@
 import random
 import math
 import time
+import csv
+import os
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Any
 
 from graph_generation_functions import make_billiard_graph_integers, graph_info
 from rotation_and_plotting_functions import neighbor_easy_swap, neighbor_segment_reverse, neighbor_edge_dart, neighbor_full_shuffle, propose_multi_neighbor
-from face_and_genus_counting_functions import genus_from_rotation, random_rotation_from_adj, print_face_length_counts
+from face_and_genus_counting_functions import genus_from_rotation, random_rotation_from_adj, print_face_length_counts, face_length_counts
 
 #----------------------------------------------------------
 # Global variable to control display of progress during simulated annealing.
@@ -138,6 +140,44 @@ def billiard_graph_min_genus_experiment(bracket: List[int],
             print(f"vertex {v}: {best_rot[v]}")
 
 #============================================================
+# CSV EXPORT HELPER
+#============================================================
+
+def save_experiment_results_to_csv(records: List[Dict[str, Any]], 
+                                  csv_filename: str = "experiment_results.csv") -> None:
+    """
+    Append experiment records to a CSV file. If the file does not exist,
+    create it and write the header row.
+    """
+    if not records or not csv_filename:
+        return
+
+    fieldnames = [
+        "bracket",
+        "neighbor_function",
+        "run",
+        "genus",
+        "elapsed_time_s",
+        "best_genus",
+        "total_faces",
+        "face_distribution",
+        "best_rotation"
+    ]
+
+    dir_name = os.path.dirname(csv_filename)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
+
+    file_exists = os.path.exists(csv_filename) and os.path.getsize(csv_filename) > 0
+
+    with open(csv_filename, mode="a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        for record in records:
+            writer.writerow({k: record.get(k, "") for k in fieldnames})
+
+#============================================================
 # BILLIARD GRAPH MINIMUM GENUS EXPERIMENT WITH MULTIPLE RUNS
 #============================================================
 
@@ -146,13 +186,38 @@ def billiard_graph_min_genus_experiment_n_runs(bracket: List[int],
                                                 max_iterations: int = 2000000,
                                                 init_temperature: float = 3.0,
                                                 final_temperature: float = 1e-5, 
-                                                funcs: list = [("Easy: Single-vertex 2-swap", neighbor_easy_swap)]) -> None:
+                                                funcs: list = None,
+                                                func = None,
+                                                csv_filename: Optional[str] = "experiment_results.csv") -> None:
     """
-    Run the billiard graph minimum genus experiment with a specified neighbor function for a given bracket.
+    Run the billiard graph minimum genus experiment with specified neighbor function(s) for a given bracket.
+    Prints results to the terminal and appends detailed results to a CSV file.
     """
     print(
         f"\n=== {bracket} {n_runs}-run best ==="
     )
+
+    # Normalize func or funcs into a list of (name, function) tuples
+    if func is not None:
+        if isinstance(func, tuple):
+            active_funcs = [func]
+        elif callable(func):
+            active_funcs = [(getattr(func, "__name__", "neighbor_func"), func)]
+        elif isinstance(func, list):
+            active_funcs = func
+        else:
+            active_funcs = [("neighbor_func", func)]
+    elif funcs is not None:
+        active_funcs = []
+        for f in funcs:
+            if isinstance(f, tuple):
+                active_funcs.append(f)
+            elif callable(f):
+                active_funcs.append((getattr(f, "__name__", "neighbor_func"), f))
+            else:
+                active_funcs.append((str(f), f))
+    else:
+        active_funcs = [("Easy: Single-vertex 2-swap", neighbor_easy_swap)]
 
     best_overall_genus = float("inf")
     best_overall_rot = None
@@ -161,9 +226,13 @@ def billiard_graph_min_genus_experiment_n_runs(bracket: List[int],
 
     init_rotation = random_rotation_from_adj(adj)
 
-    for func in funcs:
+    records: List[Dict[str, Any]] = []
 
-        print(f"\n=== {func[0]} ===")
+    for func_item in active_funcs:
+        func_name = func_item[0]
+        neighbor_fn = func_item[1]
+
+        print(f"\n=== {func_name} ===")
         
         for run in range(1, n_runs + 1):
         
@@ -173,7 +242,7 @@ def billiard_graph_min_genus_experiment_n_runs(bracket: List[int],
                 simulated_annealing_min_genus(
                     adj,
                     init_rotation,
-                    func[1],
+                    neighbor_fn,
                     max_iters=max_iterations,
                     init_temp=init_temperature,
                     final_temp=final_temperature
@@ -194,24 +263,53 @@ def billiard_graph_min_genus_experiment_n_runs(bracket: List[int],
 
                 best_overall_rot = rot
 
+            records.append({
+                "bracket": str(bracket),
+                "neighbor_function": func_name,
+                "run": run,
+                "genus": g,
+                "elapsed_time_s": round(elapsed, 2)
+            })
+
     print(
         f"\nBest genus across {n_runs} runs: "
         f"{best_overall_genus}"
     )
 
-    print_face_length_counts(
-        best_overall_rot,
-        adj
-    )
-
-    print("\nBest rotation system:")
-
-    for v in sorted(best_overall_rot):
-
-        print(
-            f"vertex {v}: "
-            f"{best_overall_rot[v]}"
+    if best_overall_rot is not None:
+        print_face_length_counts(
+            best_overall_rot,
+            adj
         )
+
+        print("\nBest rotation system:")
+
+        for v in sorted(best_overall_rot):
+
+            print(
+                f"vertex {v}: "
+                f"{best_overall_rot[v]}"
+            )
+
+        best_face_counts = face_length_counts(best_overall_rot, adj)
+        total_faces = sum(best_face_counts.values())
+        face_dist_str = str(dict(sorted(best_face_counts.items())))
+        best_rot_str = str(dict(sorted(best_overall_rot.items())))
+    else:
+        best_face_counts = {}
+        total_faces = 0
+        face_dist_str = "{}"
+        best_rot_str = "{}"
+
+    for r in records:
+        r["best_genus"] = best_overall_genus
+        r["total_faces"] = total_faces
+        r["face_distribution"] = face_dist_str
+        r["best_rotation"] = best_rot_str
+
+    if csv_filename:
+        save_experiment_results_to_csv(records, csv_filename)
+        print(f"\nResults saved to {os.path.abspath(csv_filename)}")
 
 def billiard_graph_min_genus_experiment_n_runs_outdated(bracket: List[int], n_runs: int = 3, func: callable = neighbor_easy_swap) -> None:
     """
@@ -278,7 +376,7 @@ def billiard_graph_min_genus_experiment_n_runs_outdated(bracket: List[int], n_ru
         )
 
 
-def billiard_bracket_type_one_experiment(n_runs: int = 3, m: int = 20) -> None:
+def billiard_bracket_type_one_experiment(n_runs: int = 3, m: int = 20, csv_filename: str = "experiment_results.csv") -> None:
     """
     Run the billiard graph minimum genus experiment for a bracket of the form [1,1,1,2k-3] for k from 2 to m.
     """
@@ -309,10 +407,10 @@ def billiard_bracket_type_one_experiment(n_runs: int = 3, m: int = 20) -> None:
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func)
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func, csv_filename=csv_filename)
 
 
-def billiard_bracket_type_two_experiment(n_runs: int = 3, m: int = 20) -> None:
+def billiard_bracket_type_two_experiment(n_runs: int = 3, m: int = 20, csv_filename: str = "experiment_results.csv") -> None:
     """
     Run the billiard graph minimum genus experiment for a bracket of the form [1,2,3,2k] for k from 2 to m.
     """
@@ -343,9 +441,9 @@ def billiard_bracket_type_two_experiment(n_runs: int = 3, m: int = 20) -> None:
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func)
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func, csv_filename=csv_filename)
 
-def billiard_bracket_type_three_experiment(n_runs: int = 3, m: int = 20) -> None:
+def billiard_bracket_type_three_experiment(n_runs: int = 3, m: int = 20, csv_filename: str = "experiment_results.csv") -> None:
     """
     Run the billiard graph minimum genus experiment for a bracket of the form [1,2,3,4,3k+2] for k from 0 to m.
     """
@@ -376,9 +474,9 @@ def billiard_bracket_type_three_experiment(n_runs: int = 3, m: int = 20) -> None
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func)
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func, csv_filename=csv_filename)
 
-def billiard_bracket_type_four_experiment(n_runs: int = 3, m: int = 20) -> None:
+def billiard_bracket_type_four_experiment(n_runs: int = 3, m: int = 20, csv_filename: str = "experiment_results.csv") -> None:
 
     print("\n=== Finding minimum genus for brackets of the form [k,k+1,k+2,k+3] ===")
         
@@ -407,9 +505,9 @@ def billiard_bracket_type_four_experiment(n_runs: int = 3, m: int = 20) -> None:
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func[1])
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func, csv_filename=csv_filename)
 
-def billiard_bracket_type_five_experiment(n_runs: int = 3, m: int = 20) -> None:
+def billiard_bracket_type_five_experiment(n_runs: int = 3, m: int = 20, csv_filename: str = "experiment_results.csv") -> None:
     print("\n=== Finding minimum genus for brackets of the form [1,1,1,1, 3k-4] ===")
     
     for k in range(2, 21):
@@ -418,10 +516,6 @@ def billiard_bracket_type_five_experiment(n_runs: int = 3, m: int = 20) -> None:
 
         print(f"\n=== Bracket: {bracket} ===")
 
-        adj = make_billiard_graph_integers(bracket)
-
-        init_rotation = random_rotation_from_adj(adj)
-        
         # Construct billiard graph.
         adj = make_billiard_graph_integers(bracket)
 
@@ -441,5 +535,5 @@ def billiard_bracket_type_five_experiment(n_runs: int = 3, m: int = 20) -> None:
         ]
 
         for func in neighbors:
-            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func[1])
+            billiard_graph_min_genus_experiment_n_runs(bracket, n_runs=n_runs, func=func, csv_filename=csv_filename)
 
