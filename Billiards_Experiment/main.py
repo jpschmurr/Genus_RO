@@ -22,8 +22,7 @@ if __name__ == "__main__":
     )
 
     bracket = [
-        int(x)
-        for x in bracket_input.split()
+        int(x) for x in bracket_input.split()
     ]
 
     neighbors = [
