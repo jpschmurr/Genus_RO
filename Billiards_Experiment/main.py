@@ -29,8 +29,8 @@ if __name__ == "__main__":
         ("Easy: Single-vertex 2-swap", neighbor_easy_swap),
         ("Medium: Segment reversal", neighbor_segment_reverse),
         ("Medium: Edge-targeted dart", neighbor_edge_dart),
-        #("Hard: full-vertex shuffle", neighbor_full_shuffle),
-        #("Multi-neighborhood (weighted)", propose_multi_neighbor)
+        ("Hard: full-vertex shuffle", neighbor_full_shuffle),
+        ("Multi-neighborhood (weighted)", propose_multi_neighbor)
     ]
 
     #billiard_graph_min_genus_experiment(bracket)

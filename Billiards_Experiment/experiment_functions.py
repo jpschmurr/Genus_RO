@@ -183,7 +183,7 @@ def save_experiment_results_to_csv(records: List[Dict[str, Any]],
 
 def billiard_graph_min_genus_experiment_n_runs(bracket: List[int], 
                                                 n_runs: int = 3, 
-                                                max_iterations: int = 2000000,
+                                                max_iterations: int = 1000000,
                                                 init_temperature: float = 3.0,
                                                 final_temperature: float = 1e-5, 
                                                 funcs: list = None,
