@@ -57,22 +57,4 @@ __all__ = [
 
 if __name__ == "__main__":
     import Billiards_Experiment.hill_climbing as hc
-
-    bracket_input = input("Enter billiard bracket (e.g. '1 2 3 2' or '3 3 4') [default 1 2 3 2]: ").strip()
-    bracket = [int(x) for x in bracket_input.split()] if bracket_input else [1, 2, 3, 2]
-
-    runs_input = input("Enter number of restarts [default 5]: ").strip()
-    n_restarts = int(runs_input) if runs_input else 5
-
-    method_input = input("Operator ('swap', 'segment_reverse', 'edge_dart', 'all') [default 'swap']: ").strip().lower()
-    method = method_input if method_input else "swap"
-
-    hc.billiard_graph_hill_climbing_experiment(
-        bracket=bracket,
-        n_restarts=n_restarts,
-        method=method,
-        tie_strategy="steepest",
-        target_genus=0.0,
-        verbose=False,
-        csv_filename="experiment_results.csv",
-    )
+    hc.main()

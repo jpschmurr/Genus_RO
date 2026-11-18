@@ -843,33 +843,179 @@ def find_stuck_seeds_triangular(
 # STANDALONE CLI ENTRYPOINT
 # ============================================================================
 
-if __name__ == "__main__":
-    print("=" * 70)
-    print("  Recursive Hill Climbing for Cayley Graphs Minimum Genus")
-    print("=" * 70)
+def main() -> None:
+    """CLI entrypoint supporting both command-line arguments and interactive prompts."""
+    import argparse
 
-    bracket_input = input(
-        "Enter billiard bracket (e.g. '1 2 3 2' or '1 2 4' or '1 1 1 3'): "
-    ).strip()
+    if len(sys.argv) > 1:
+        parser = argparse.ArgumentParser(
+            description="Recursive Hill Climbing for Cayley Graphs Minimum Genus"
+        )
+        parser.add_argument(
+            "bracket",
+            nargs="*",
+            type=int,
+            help="Billiard bracket tuple as space-separated integers (e.g. 3 3 4 or 2 1 1)",
+        )
+        parser.add_argument(
+            "--seed",
+            "-s",
+            type=int,
+            default=None,
+            help="Evaluate a single specific random seed (e.g. --seed 0)",
+        )
+        parser.add_argument(
+            "--restarts",
+            "-r",
+            type=int,
+            default=5,
+            help="Number of random restarts (default: 5)",
+        )
+        parser.add_argument(
+            "--method",
+            "-m",
+            type=str,
+            default="swap",
+            choices=["swap", "segment_reverse", "edge_dart", "all"],
+            help="Neighborhood operator (default: 'swap')",
+        )
+        parser.add_argument(
+            "--check-stuck",
+            action="store_true",
+            help="Scan seeds and check for local minima traps against Theorem 6 (triangles only)",
+        )
+        parser.add_argument(
+            "--seeds",
+            type=int,
+            default=20,
+            help="Number of seeds to scan when using --check-stuck (default: 20)",
+        )
+        parser.add_argument(
+            "--verbose",
+            "-v",
+            action="store_true",
+            help="Display verbose climb and tie-branching details",
+        )
+        args = parser.parse_args()
 
-    if not bracket_input:
-        bracket = [1, 2, 3, 2]
-        print(f"Using default bracket: {bracket}")
+        bracket = args.bracket if args.bracket else [1, 2, 3, 2]
+
+        if args.check_stuck:
+            if len(bracket) != 3:
+                print(f"Error: --check-stuck requires a triangular bracket (3 integers), got {bracket}.")
+                sys.exit(1)
+            report = find_stuck_seeds_triangular(bracket, n_seeds=args.seeds, verbose=args.verbose)
+            print(f"\n=== Stuck Seed Scan for Triangle {bracket} ===")
+            print(f"Theoretical Genus (Theorem 6): {report['true_genus']}")
+            print(f"Stuck Seeds ({report['stuck_count']}/{report['total_seeds']}): {report['stuck_seeds']}")
+            print("\nSeed Breakdown:")
+            for r in report["records"]:
+                status = "STUCK (trapped in local minimum)" if r["stuck"] else "FOUND MINIMUM"
+                print(f"  Seed {r['seed']:2d}: initial={r['initial_genus']} -> found={r['found_genus']} | {status}")
+            return
+
+        if args.seed is not None:
+            adj = make_billiard_graph_integers(bracket)
+            print(f"\n=== Single Seed Run: Bracket {bracket}, Seed {args.seed} ===")
+            graph_info(adj)
+            init_rot = random_rotation_from_adj(adj, seed=args.seed)
+            init_g = genus_from_rotation(init_rot, adj)
+            print(f"Initial rotation genus: {init_g}")
+
+            true_g = theoretical_genus_triangular(bracket) if len(bracket) == 3 else None
+            if true_g is not None:
+                print(f"Theoretical minimum genus (Theorem 6): {true_g}")
+
+            best_rot, best_g, stats = hill_climbing_min_genus(
+                adj=adj,
+                init_rotation=init_rot,
+                neighborhood_func=lambda r: get_all_neighbors(r, method=args.method, deduplicate=True, adj=adj),
+                verbose=args.verbose,
+            )
+
+            print(f"\nResult:")
+            print(f"  Initial Genus:     {init_g}")
+            print(f"  Best Genus Found:  {best_g}")
+            print(f"  Evaluations:       {stats['evaluations']}")
+            print(f"  Tie Events:        {stats['tie_events']}")
+            print(f"  Elapsed Time:      {stats['elapsed_time_s']:.3f}s")
+
+            if true_g is not None:
+                if best_g > true_g:
+                    print(f"\n>> OUTCOME: STUCK AT LOCAL MINIMUM (genus {best_g} > theoretical minimum {true_g}) <<")
+                else:
+                    print(f"\n>> OUTCOME: SUCCESS (reached theoretical minimum {true_g}) <<")
+            print_face_length_counts(best_rot, adj)
+            return
+
+        billiard_graph_hill_climbing_experiment(
+            bracket=bracket,
+            n_restarts=args.restarts,
+            method=args.method,
+            tie_strategy="steepest",
+            target_genus=0.0,
+            verbose=args.verbose,
+            csv_filename="experiment_results.csv",
+        )
     else:
-        bracket = [int(x) for x in bracket_input.split()]
+        print("=" * 70)
+        print("  Recursive Hill Climbing for Cayley Graphs Minimum Genus")
+        print("=" * 70)
 
-    runs_input = input("Enter number of restarts [default 5]: ").strip()
-    n_restarts = int(runs_input) if runs_input else 5
+        bracket_input = input(
+            "Enter billiard bracket (e.g. '1 2 3 2' or '3 3 4' or '2 1 1'): "
+        ).strip()
+        bracket = [int(x) for x in bracket_input.split()] if bracket_input else [1, 2, 3, 2]
 
-    method_input = input("Operator ('swap', 'segment_reverse', 'edge_dart', 'all') [default 'swap']: ").strip().lower()
-    method = method_input if method_input else "swap"
+        seed_input = input("Enter specific seed to test (or press Enter for multi-restart experiment): ").strip()
+        if seed_input:
+            seed = int(seed_input)
+            adj = make_billiard_graph_integers(bracket)
+            print(f"\n=== Single Seed Run: Bracket {bracket}, Seed {seed} ===")
+            graph_info(adj)
+            init_rot = random_rotation_from_adj(adj, seed=seed)
+            init_g = genus_from_rotation(init_rot, adj)
+            print(f"Initial rotation genus: {init_g}")
 
-    billiard_graph_hill_climbing_experiment(
-        bracket=bracket,
-        n_restarts=n_restarts,
-        method=method,
-        tie_strategy="steepest",
-        target_genus=0.0,
-        verbose=False,
-        csv_filename="experiment_results.csv",
-    )
+            true_g = theoretical_genus_triangular(bracket) if len(bracket) == 3 else None
+            if true_g is not None:
+                print(f"Theoretical minimum genus (Theorem 6): {true_g}")
+
+            best_rot, best_g, stats = hill_climbing_min_genus(
+                adj=adj,
+                init_rotation=init_rot,
+                verbose=False,
+            )
+            print(f"\nResult:")
+            print(f"  Initial Genus:     {init_g}")
+            print(f"  Best Genus Found:  {best_g}")
+            print(f"  Evaluations:       {stats['evaluations']}")
+            print(f"  Tie Events:        {stats['tie_events']}")
+            print(f"  Elapsed Time:      {stats['elapsed_time_s']:.3f}s")
+            if true_g is not None:
+                if best_g > true_g:
+                    print(f"\n>> OUTCOME: STUCK AT LOCAL MINIMUM (genus {best_g} > theoretical minimum {true_g}) <<")
+                else:
+                    print(f"\n>> OUTCOME: SUCCESS (reached theoretical minimum {true_g}) <<")
+            print_face_length_counts(best_rot, adj)
+            return
+
+        runs_input = input("Enter number of restarts [default 5]: ").strip()
+        n_restarts = int(runs_input) if runs_input else 5
+
+        method_input = input("Operator ('swap', 'segment_reverse', 'edge_dart', 'all') [default 'swap']: ").strip().lower()
+        method = method_input if method_input else "swap"
+
+        billiard_graph_hill_climbing_experiment(
+            bracket=bracket,
+            n_restarts=n_restarts,
+            method=method,
+            tie_strategy="steepest",
+            target_genus=0.0,
+            verbose=False,
+            csv_filename="experiment_results.csv",
+        )
+
+
+if __name__ == "__main__":
+    main()

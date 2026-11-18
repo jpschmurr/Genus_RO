@@ -49,26 +49,158 @@ Standard local search / simulated annealing typically samples a single random ne
 
 Because hill climbing is strictly downhill, it can become trapped in local minima where every single-vertex move either leaves the genus unchanged or increases it.
 
-### Case Study: $T(3, 3, 4)$ (`bracket = [3, 3, 4]`)
-- **Properties**: Angles $\frac{3\pi}{10}, \frac{3\pi}{10}, \frac{4\pi}{10}$; $n = 10$; isosceles with $n$ even.
-- **Theoretical Genus**: **$0$** (proven in Theorem 6; illustrated in Figures 3 & 4 of the paper).
+### Case Study 1: $T(3, 3, 4)$ (`bracket = [3, 3, 4]`)
+*Featured explicitly in Figures 3 & 4 (pages 4–5) of Grzegrzolka, McCartney, Schmurr.*
+- **Properties**: Angles $\frac{3\pi}{10}, \frac{3\pi}{10}, \frac{4\pi}{10}$; $n = 10$; $V = 20, E = 30$; 3-regular; isosceles with $n$ even.
+- **Theoretical Genus**: **$0$** (proven in Theorem 6).
 - **Stuck Seeds**:
-  - **Seed 0**: Initial genus is $3.0$. All 20 swap neighbors have genus $\ge 3.0$ (0 improving moves). The algorithm immediately halts at local minimum **$3.0$**.
-  - **Seed 1**: Initial genus $5.0 \to$ improves to **$3.0$** and halts.
-  - **Seed 4**: Initial genus $4.0 \to$ 0 improving moves, halts at **$4.0$**.
-- **Empirical Restarts**: In an empirical test of **200 random restarts**, hill climbing **never found genus 0** (79 trapped at genus 3, 71 at genus 2, 28 at genus 4, 20 at genus 1). In contrast, Simulated Annealing discovers genus 0 because it can accept temporary uphill moves.
+  - **Seed 0**: Initial genus is $3.0$. All 20 swap neighbors have genus $\ge 3.0$ (0 improving moves). The algorithm immediately halts at local minimum **$3.0$** (fails to reach 0).
+  - **Seed 1**: Initial genus $5.0 \to$ improves to **$3.0$** and halts (fails to reach 0).
+  - **Seed 4**: Initial genus $4.0 \to$ 0 improving moves, halts at **$4.0$** (fails to reach 0).
+- **Empirical Severity**: Across **200 random restarts**, hill climbing **never found genus 0** ($0\%$ success rate: 79 trapped at genus 3, 71 at genus 2, 28 at genus 4, 20 at genus 1). In contrast, Simulated Annealing finds genus 0 because it can accept temporary uphill moves.
 
-### Additional Examples:
-- **$T(2, 1, 1)$** (Theoretical genus: **0**):
-  - **Seed 0**: Halts immediately at genus **2.0**.
-  - **Seed 2**: Steps down to genus **1.0** and gets trapped.
-- **$T(1, 2, 4)$** (Theoretical genus: **1**):
-  - **Seed 0**: Steps down to genus **2.0** and gets trapped.
-  - **Seed 1**: Halts immediately at genus **3.0**.
+### Case Study 2: $T(2, 1, 1)$ (`bracket = [2, 1, 1]`)
+*The $\pi/2, \pi/4, \pi/4$ right isosceles triangle featured in Figure 2 of the paper.*
+- **Properties**: Angles $\frac{2\pi}{4}, \frac{\pi}{4}, \frac{\pi}{4}$; $n = 4$; $V = 8, E = 12$; 3-regular; isosceles with $n$ even.
+- **Theoretical Genus**: **$0$** (proven in Theorem 6).
+- **Stuck Seeds**:
+  - **Seed 0**: Initial genus $2.0 \to$ immediately halts at local minimum **$2.0$** (fails to reach 0).
+  - **Seed 2**: Initial genus $2.0 \to$ improves to **$1.0$** and gets trapped (fails to reach 0).
+  - **Seed 3**: Initial genus $2.0 \to$ immediately halts at local minimum **$2.0$** (fails to reach 0).
+
+### Case Study 3: $T(1, 2, 4)$ (`bracket = [1, 2, 4]`)
+*The $\pi/7, 2\pi/7, 4\pi/7$ scalene triangle.*
+- **Properties**: Angles $\frac{\pi}{7}, \frac{2\pi}{7}, \frac{4\pi}{7}$; $n = 7$; $V = 14, E = 21$; 3-regular; scalene (not isosceles).
+- **Theoretical Genus**: **$1$** (proven in Theorem 6).
+- **Stuck Seeds**:
+  - **Seed 0**: Initial genus $3.0 \to$ improves to **$2.0$** and gets trapped (fails to reach 1).
+  - **Seed 1**: Initial genus $3.0 \to$ 0 improving moves, immediately halts at **$3.0$** (fails to reach 1).
+  - **Seed 3**: Initial genus $3.0 \to$ improves to **$2.0$** and gets trapped (fails to reach 1).
 
 ---
 
-## 4. API Reference
+## 4. CLI Commands & Entry Instructions for Case Studies
+
+You can reproduce any of the case studies above from your terminal. Both the root wrapper (`python hill_climbing.py`) and the experiment module (`python Billiards_Experiment/hill_climbing.py`) support direct flag arguments and interactive prompt entries.
+
+### 4.1 Direct CLI Flag Commands (Recommended)
+
+Run these commands directly in your PowerShell or Bash terminal:
+
+#### Case Study 1: $T(3, 3, 4)$ (Theoretical Genus = 0)
+```powershell
+# Test specific stuck seeds (Seed 0, Seed 1, Seed 4)
+python hill_climbing.py 3 3 4 --seed 0
+python hill_climbing.py 3 3 4 --seed 1
+python hill_climbing.py 3 3 4 --seed 4
+
+# Run a batch scan across the first 10 seeds (all 10 get stuck)
+python hill_climbing.py 3 3 4 --check-stuck --seeds 10
+```
+
+#### Case Study 2: $T(2, 1, 1)$ (Theoretical Genus = 0)
+```powershell
+# Test specific stuck seeds (Seed 0, Seed 2, Seed 3)
+python hill_climbing.py 2 1 1 --seed 0
+python hill_climbing.py 2 1 1 --seed 2
+python hill_climbing.py 2 1 1 --seed 3
+
+# Run a batch scan across the first 10 seeds
+python hill_climbing.py 2 1 1 --check-stuck --seeds 10
+```
+
+#### Case Study 3: $T(1, 2, 4)$ (Theoretical Genus = 1)
+```powershell
+# Test specific stuck seeds (Seed 0, Seed 1, Seed 3)
+python hill_climbing.py 1 2 4 --seed 0
+python hill_climbing.py 1 2 4 --seed 1
+python hill_climbing.py 1 2 4 --seed 3
+
+# Run a batch scan across the first 10 seeds
+python hill_climbing.py 1 2 4 --check-stuck --seeds 10
+```
+
+---
+
+### 4.2 Interactive Entry Instructions (Prompt-by-Prompt)
+
+If you run `python hill_climbing.py` without arguments, the script enters interactive mode. Follow the prompt instructions below to reproduce the stuck cases:
+
+#### How to test Seed 0 on Bracket `3 3 4`:
+1. Start the script:
+   ```powershell
+   python hill_climbing.py
+   ```
+2. **Prompt 1**:
+   ```text
+   Enter billiard bracket (e.g. '1 2 3 2' or '3 3 4' or '2 1 1'):
+   ```
+   **Entry**: Type `3 3 4` and press `Enter`.
+3. **Prompt 2**:
+   ```text
+   Enter specific seed to test (or press Enter for multi-restart experiment):
+   ```
+   **Entry**: Type `0` and press `Enter`.
+4. **Output displayed**:
+   ```text
+   === Single Seed Run: Bracket [3, 3, 4], Seed 0 ===
+   Number of vertices: 20
+   Number of edges:    30
+   Degrees:            [3]
+   Regularity:         3-regular
+   Initial rotation genus: 3.0
+   Theoretical minimum genus (Theorem 6): 0
+
+   Result:
+     Initial Genus:     3.0
+     Best Genus Found:  3.0
+     Evaluations:       1
+     Tie Events:        0
+     Elapsed Time:      0.001s
+
+   >> OUTCOME: STUCK AT LOCAL MINIMUM (genus 3.0 > theoretical minimum 0) <<
+   ```
+
+#### How to run a multi-restart experiment interactively:
+1. Run `python hill_climbing.py`.
+2. At the bracket prompt, enter `3 3 4` (or any bracket).
+3. At the seed prompt, **press `Enter`** (leave blank) to choose multi-restart mode.
+4. At `Enter number of restarts [default 5]:`, type `5` (or press `Enter`).
+5. At `Operator ('swap', 'segment_reverse', 'edge_dart', 'all') [default 'swap']:`, press `Enter` to use single-vertex 2-swaps.
+
+---
+
+### 4.3 Piped Console One-Liners
+
+You can also automate the interactive prompts without entering them manually:
+
+#### Windows PowerShell:
+```powershell
+# Case Study 1: Bracket [3, 3, 4], Seed 0
+"3 3 4`n0" | python hill_climbing.py
+
+# Case Study 2: Bracket [2, 1, 1], Seed 0
+"2 1 1`n0" | python hill_climbing.py
+
+# Case Study 3: Bracket [1, 2, 4], Seed 0
+"1 2 4`n0" | python hill_climbing.py
+```
+
+#### Linux / macOS / Git Bash:
+```bash
+# Case Study 1: Bracket [3, 3, 4], Seed 0
+printf "3 3 4\n0\n" | python hill_climbing.py
+
+# Case Study 2: Bracket [2, 1, 1], Seed 0
+printf "2 1 1\n0\n" | python hill_climbing.py
+
+# Case Study 3: Bracket [1, 2, 4], Seed 0
+printf "1 2 4\n0\n" | python hill_climbing.py
+```
+
+---
+
+## 5. API Reference
 
 All functions are available via `hill_climbing` (root) or `Billiards_Experiment.hill_climbing`.
 
@@ -94,21 +226,9 @@ All functions are available via `hill_climbing` (root) or `Billiards_Experiment.
 
 ---
 
-## 5. Usage Examples
+## 6. Python Scripting Examples
 
-### 5.1 Terminal Execution
-Run interactively from the repository root:
-```powershell
-python hill_climbing.py
-```
-Or from `Billiards_Experiment`:
-```powershell
-python Billiards_Experiment/hill_climbing.py
-```
-
-### 5.2 Python Scripting
-
-#### Basic Hill Climbing on a Billiard Graph
+### Basic Hill Climbing on a Billiard Graph
 ```python
 import hill_climbing as hc
 from Billiards_Experiment.graph_generation_functions import make_billiard_graph_integers
@@ -121,7 +241,7 @@ print(f"Best genus:    {best_genus}")
 print(f"Tie events:    {stats['tie_events']}")
 ```
 
-#### Random Restarts
+### Random Restarts
 ```python
 import hill_climbing as hc
 from Billiards_Experiment.graph_generation_functions import make_billiard_graph_integers
@@ -131,7 +251,7 @@ best_rot, best_genus, records = hc.random_restart_hill_climbing(adj, n_restarts=
 print(f"Best genus across 5 runs: {best_genus}")
 ```
 
-#### Testing Stuck Seeds against Theorem 6
+### Programmatic Stuck Seed Verification
 ```python
 import hill_climbing as hc
 
